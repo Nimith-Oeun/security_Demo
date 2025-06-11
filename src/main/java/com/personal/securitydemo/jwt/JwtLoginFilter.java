@@ -1,6 +1,10 @@
 package com.personal.securitydemo.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.personal.securitydemo.dto.LoginRequest;
+import com.personal.securitydemo.dto.LoginRespones;
+import com.personal.securitydemo.model.User;
+import com.personal.securitydemo.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
@@ -12,6 +16,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.io.IOException;
@@ -22,6 +27,7 @@ import java.util.Date;
 public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter{
 
     private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
 
     /**
      * Constructor for JwtLoginFilter.
@@ -80,20 +86,24 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter{
                 .signWith(Keys.hmacShaKeyFor(secretKey.getBytes())) // Set the signature of the token
                 .compact();
 
-//        // Fetch user details from the database
-//        User user = userRepository.findByUserName(authResult.getName()).get();
-//
-//        // Map user details to LoginRespones
-//        LoginRespones loginResponse = AuthMapper.INSTANCE.mapUserToLoginRequest(user);
-//        loginResponse.setToken(token);
-//        loginResponse.setAuthorities(authResult.getAuthorities().stream()
-//                .map(GrantedAuthority::getAuthority)
-//                .filter(authority -> authority.startsWith("ROLE_"))
-//                .toArray(String[]::new));
-//
-//        // Write the LoginResponse object to the response body
-//        response.setContentType("application/json");
-//        response.getWriter().write(new ObjectMapper().writeValueAsString(loginResponse));
+        // Fetch user details from the database
+        User user = userRepository.findByUserName(authResult.getName()).get();
+
+        // Map user details to LoginRespones
+        LoginRespones loginResponse = LoginRespones.builder()
+                .lastName(user.getLastName())
+                .firstName(user.getFirstName())
+                .userName(user.getUserName())
+                .build();
+        loginResponse.setToken(token);
+        loginResponse.setAuthorities(authResult.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(authority -> authority.startsWith("ROLE_"))
+                .toArray(String[]::new));
+
+        // Write the LoginResponse object to the response body
+        response.setContentType("application/json");
+        response.getWriter().write(new ObjectMapper().writeValueAsString(loginResponse));
 
         // Set the token in the response header
         response.setHeader("Authorization", "Bearer  " + token);
